@@ -28,16 +28,33 @@ void setup()
   Serial.println("Domino 55 - test1");
 }
 
+int t0 = HIGH;
+
 void loop()
 {
+  /*
   digitalWrite(ledNum, HIGH);
   delay(1000);
   digitalWrite(ledNum, LOW);
   ledNum++;
   if (ledNum > LED_TO)
     ledNum = LED_FROM;
+  */
   for (int t = KEY_FROM; t <= KEY_TO; t++)
     Serial.print(digitalRead(t), BIN);
-  Serial.println();
+  Serial.print("   ");
+  int t1 = digitalRead(KEY_FROM);
+  if (t0 != t1)
+  {
+    t0 = t1;
+    ledNum++;
+    if (ledNum > LED_TO)
+      ledNum = LED_FROM;
+  }
+  Serial.println(ledNum);
+  digitalWrite(ledNum, HIGH);
+  delay(500);
+  digitalWrite(ledNum, LOW);
+  delay(500);
 }
 
