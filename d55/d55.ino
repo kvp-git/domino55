@@ -396,14 +396,14 @@ void initLogic()
     for (int t = 0; t < TURNOUTS_NUM; t++)
       turnoutSet(t, TURNOUT_DIVERGING);  
   }
-  if ((initTime >= 6000) && (initStep == 2))
+  if ((initTime >= 7000) && (initStep == 2))
   {
     initStep = 3;
     Serial.println("turnout reset step 2...");
     for (int t = 0; t < TURNOUTS_NUM; t++)
       turnoutSet(t, TURNOUT_STRAIGHT);
   }
-  if ((initTime >= 10000) && (initStep == 3))
+  if ((initTime >= 12000) && (initStep == 3))
   {
     Serial.println("mode selection");
     if (keys[0])
