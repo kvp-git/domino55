@@ -521,7 +521,10 @@ void initLogic()
 
 void runningInit()
 {
-  // TODO!!!
+  for (int t = 0; t < ROUTELOCKS_NUM; t++)
+  {
+    routeLocks[t].state.state = ROUTESTATE_IDLE;
+  }
 }
 
 void runningLogic()
