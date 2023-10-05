@@ -160,6 +160,7 @@ enum ROUTESTATE
 {
   ROUTESTATE_IDLE = 0,
   ROUTESTATE_ACTIVE,
+  ROUTESTATE_LOCKED,
 };
 
 enum SIGNALSTATE
@@ -301,7 +302,11 @@ void turnoutSet(int turnoutNum, int route)
 {
   if ((turnoutNum < 0) || (turnoutNum >= TURNOUTS_NUM))
     return;
-  turnouts[turnoutNum].state.state = TURNOUTSTATE_MOVING_TURNOUT;
+  Serial.print("setting turnout ");
+  Serial.print(turnoutNum);
+  Serial.print(" to direction ");
+  Serial.println(route);
+  turnouts[turnoutNum].state.state = ((route < 0) ? TURNOUTSTATE_MOVING_TURNOUT : TURNOUTSTATE_MOVING_ROUTE);
   turnouts[turnoutNum].state.counter = TURNOUT_MOVE_TIME;
   turnouts[turnoutNum].state.route = route;
   turnouts[turnoutNum].state.routeSelectionNum = ROUTE_NONE;
@@ -315,10 +320,21 @@ void turnoutStop(int turnoutNum)
   turnouts[turnoutNum].state.counter = 0;
 }
 
+bool turnoutIsLocked(int turnoutNum)
+{
+  if ((turnoutNum < 0) || (turnoutNum >= TURNOUTS_NUM))
+    return false;
+  return (turnouts[turnoutNum].state.state == TURNOUTSTATE_LOCKED);
+}
+
 void signalSet(int signalNum, int state)
 {
   if ((signalNum < 0) || (signalNum >= SIGNALS_NUM))
     return;
+  Serial.print("setting signal ");
+  Serial.print(signalNum);
+  Serial.print(" to state ");
+  Serial.println(state);
   signals[signalNum].state.state = state;
 }
 
@@ -328,6 +344,10 @@ bool routeLock(int routeNum, int routeSelectionNum)
     return false;
   if (routeLocks[routeNum].state.state != ROUTESTATE_IDLE)
     return false;
+  Serial.print("setting route lock ");
+  Serial.print(routeNum);
+  Serial.print(" to route ");
+  Serial.println(routeSelectionNum);
   routeLocks[routeNum].state.state = ROUTESTATE_ACTIVE;
   routeLocks[routeNum].state.routeSelectionNum = routeSelectionNum;
   return true;
@@ -337,7 +357,7 @@ bool routeClear(int routeNum)
 {
   if ((routeNum < 0) || (routeNum >= ROUTELOCKS_NUM))
     return false;
-  if (routeLocks[routeNum].state.state != ROUTESTATE_ACTIVE)
+  if (routeLocks[routeNum].state.state != ROUTESTATE_LOCKED)
     return false;
   routeLocks[routeNum].state.state = ROUTESTATE_IDLE;
   routeLocks[routeNum].state.routeSelectionNum = ROUTE_NONE;
@@ -356,16 +376,21 @@ void updateTurnouts()
       turnouts[t].state.counter--;
       if (turnouts[t].state.counter == 0)
       {
-        turnoutStop(t);
         switch(turnouts[t].state.state)
         {
           case TURNOUTSTATE_IDLE:
           case TURNOUTSTATE_LOCKED:
             break;
           case TURNOUTSTATE_MOVING_TURNOUT:
+            Serial.print("turnout ");
+            Serial.print(t);
+            Serial.println(" idle");
             turnouts[t].state.state = TURNOUTSTATE_IDLE;
             break;
           case TURNOUTSTATE_MOVING_ROUTE:
+            Serial.print("turnout ");
+            Serial.print(t);
+            Serial.println(" locked");
             turnouts[t].state.state = TURNOUTSTATE_LOCKED;
             break;
         }
@@ -441,11 +466,203 @@ void updateRoutes()
   }
 }
 
-void initLogic();
-void testInit();
-void testLogic();
-void runningInit();
-void runningLogic();
+void initLogic()
+{
+  int initTime = millis() - initT0;
+  if (initStep == 0)
+  {
+    initStep = 1;
+    Serial.println("led tests...");
+    for (int t = 0; t < LED_NUM; t++)
+      leds[t] = LEDS_ON;
+  }
+  if ((initTime >= 2000) && (initStep == 1))
+  {
+    initStep = 2;
+    for (int t = 0; t < LED_NUM; t++)
+      leds[t] = LEDS_OFF;
+    Serial.println("turnout reset step 1...");
+    for (int t = 0; t < TURNOUTS_NUM; t++)
+      turnoutSet(t, TURNOUT_DIVERGING);  
+    for (int t = 0; t < SIGNALS_NUM; t++)
+      signalSet(t, SIGNAL_CALL);
+    for (int t = 0; t < ROUTELOCKS_NUM; t++)
+      routeLock(t, -1);
+  }
+  if ((initTime >= 7000) && (initStep == 2))
+  {
+    initStep = 3;
+    Serial.println("turnout reset step 2...");
+    for (int t = 0; t < TURNOUTS_NUM; t++)
+      turnoutSet(t, TURNOUT_STRAIGHT);
+    for (int t = 0; t < SIGNALS_NUM; t++)
+      signalSet(t, SIGNAL_GO);
+  }
+  if ((initTime >= 12000) && (initStep == 3))
+  {
+    for (int t = 0; t < SIGNALS_NUM; t++)
+      signalSet(t, SIGNAL_STOP);
+    for (int t = 0; t < ROUTELOCKS_NUM; t++)
+      routeClear(t);
+    Serial.println("mode selection");
+    if (keys[0])
+    {
+      modeFlag = MODE_TEST;
+      testInit();
+    }else
+    {
+      modeFlag = MODE_RUN;
+      runningInit();
+    }
+  }
+}
+
+// ---- RUNNING ----
+
+void runningInit()
+{
+  // TODO!!!
+}
+
+void runningLogic()
+{
+  for (int t = 0; t < TURNOUTS_NUM; t++)
+  {
+    // scan keys for turnout select
+    // TODO!!!
+  }
+  for (int t = 0; t < SIGNALS_NUM; t++)
+  {
+    // scan keys for signal select
+    // TODO!!!
+  }
+  for (int t = 0; t < ROUTES_NUM; t++)
+  {
+    if (keys[routeSelections[t].lockKeys[0]] && keys[routeSelections[t].lockKeys[1]])
+    {
+      int r0 = routeSelections[t].routeLockNums[0];
+      int r1 = routeSelections[t].routeLockNums[1];
+      int t0 = routeSelections[t].turnoutNums[0];
+      int t1 = routeSelections[t].turnoutNums[1];
+      int d0 = routeSelections[t].turnoutDirs[0];
+      int d1 = routeSelections[t].turnoutDirs[1];
+      if (r1 == UNUSED)
+      {
+        if (routeLocks[r0].state.state == ROUTESTATE_IDLE)
+        {
+          routeLock(r0, t);
+          if (t0 != UNUSED)
+            turnoutSet(t0, d0);
+        }
+      } else
+      {
+        if ((routeLocks[r0].state.state == ROUTESTATE_IDLE) && (routeLocks[r1].state.state == ROUTESTATE_IDLE))
+        {
+          routeLock(r0, t);
+          routeLock(r1, t);
+          if (t0 != UNUSED)
+            turnoutSet(t0, d0);
+          if (t1 != UNUSED)
+            turnoutSet(t1, d1);
+        }
+      }
+    }
+  }
+  for (int t = 0; t < ROUTELOCKS_NUM; t++)
+  {
+    if (routeLocks[t].state.state == ROUTESTATE_IDLE)
+      continue;
+    int rsn = routeLocks[t].state.routeSelectionNum;
+    if ((rsn >= 0) && (routeLocks[t].state.state == ROUTESTATE_ACTIVE))
+    {
+      int t0 = routeSelections[rsn].turnoutNums[0];
+      int t1 = routeSelections[rsn].turnoutNums[1];
+      bool isDone = true;
+      if (t0 >= 0)
+        isDone = isDone && turnoutIsLocked(t0);
+      if (t1 >= 0)
+        isDone = isDone && turnoutIsLocked(t1);
+      if (isDone)
+      {
+        signalSet(routeSelections[rsn].signalNum, SIGNAL_GO);
+        routeLocks[t].state.state = ROUTESTATE_LOCKED;
+      }
+    }
+    if (keys[routeLocks[t].desc.unlockKeys[0]] && keys[routeLocks[t].desc.unlockKeys[1]] && (routeLocks[t].state.state == ROUTESTATE_LOCKED))
+    {
+      if (rsn >= 0)
+        signalSet(routeSelections[rsn].signalNum, SIGNAL_STOP);
+      routeLocks[t].state.state = ROUTESTATE_IDLE;
+      int t0 = routeSelections[rsn].turnoutNums[0];
+      int t1 = routeSelections[rsn].turnoutNums[1];
+      if (t0 >= 0)
+        turnoutStop(t0);
+      if (t1 >= 0)
+        turnoutStop(t1);
+    }
+  }
+}
+
+// ---------- TEST ----------
+
+unsigned long testT0 = 0;
+bool testV1 = false;
+bool testV2 = false;
+bool testV3 = false;
+bool testCR = false;
+
+void testInit()
+{
+  for (int t = 0; t < LED_NUM; t++)
+    leds[t] = LEDS_BLINK;
+}
+
+void testLogic()
+{
+  unsigned long testT1 = millis() / 1000;
+  if (testT1 == testT0)
+    return;
+  testT0 = testT1;
+  Serial.print("TEST: ");
+  for (int t = 0; t < KEY_NUM; t++)
+    Serial.print((keys[t] ? 'x' : '_'));
+  Serial.println("");
+  if (keys[10])
+  {
+    dataOut[1] = (dataOut[1] + 1) & 31;
+    dataOut[3] = (dataOut[3] + 1) & 31;
+    dataOut[4] = (dataOut[4] + 1) & 31;
+    dataOut[5] = (dataOut[5] + 1) & 31;
+    dataOut[6] = (dataOut[6] + 1) & 31;
+    dataOut[8] = (dataOut[8] + 1) & 31;
+  }
+  if (keys[12])
+    testV2 = (testV2 ? false : true);
+  if (keys[11])
+    testV3 = (testV3 ? false : true);
+  if (keys[3])
+    testV1 = (testV1 ? false : true);
+  if (keys[10])
+    testCR = (testCR ? false : true);
+  if (testV1)
+    dataOut[2] = 0x02 | 0x10;
+  else
+    dataOut[2] = 0x01;
+  uint8_t v = 0;
+  if (testV2)
+    v |= 0x02;
+  else
+    v |= 0x01;
+  if (testV3)
+    v |= 0x08;
+  else
+    v |= 0x04;
+  if (testCR)
+    v |= 0x10;
+  dataOut[7] = v;
+}
+
+// ---------- MAIN ----------
 
 void setup()
 {
@@ -506,147 +723,4 @@ void loop()
   }
 }
 
-void initLogic()
-{
-  int initTime = millis() - initT0;
-  if (initStep == 0)
-  {
-    initStep = 1;
-    Serial.println("led tests...");
-    for (int t = 0; t < LED_NUM; t++)
-      leds[t] = LEDS_ON;
-  }
-  if ((initTime >= 2000) && (initStep == 1))
-  {
-    initStep = 2;
-    for (int t = 0; t < LED_NUM; t++)
-      leds[t] = LEDS_OFF;
-    Serial.println("turnout reset step 1...");
-    for (int t = 0; t < TURNOUTS_NUM; t++)
-      turnoutSet(t, TURNOUT_DIVERGING);  
-    for (int t = 0; t < SIGNALS_NUM; t++)
-      signalSet(t, SIGNAL_CALL);
-    for (int t = 0; t < ROUTELOCKS_NUM; t++)
-      routeLock(t, -1);
-  }
-  if ((initTime >= 7000) && (initStep == 2))
-  {
-    initStep = 3;
-    Serial.println("turnout reset step 2...");
-    for (int t = 0; t < TURNOUTS_NUM; t++)
-      turnoutSet(t, TURNOUT_STRAIGHT);
-    for (int t = 0; t < SIGNALS_NUM; t++)
-      signalSet(t, SIGNAL_GO);
-  }
-  if ((initTime >= 12000) && (initStep == 3))
-  {
-    for (int t = 0; t < SIGNALS_NUM; t++)
-      signalSet(t, SIGNAL_STOP);
-    for (int t = 0; t < ROUTELOCKS_NUM; t++)
-      routeClear(t);
-    Serial.println("mode selection");
-    if (keys[0])
-    {
-      modeFlag = MODE_TEST;
-      testInit();
-    }else
-    {
-      modeFlag = MODE_RUN;
-      runningInit();
-    }
-  }
-}
-
-// ---- RUNNING ----
-
-void runningInit()
-{
-  for (int t = 0; t < LED_NUM; t++)
-    leds[t] = LEDS_OFF;
-  for (int t = 0; t < TURNOUTS_NUM; t++)
-  {
-    turnouts[t].state.state = TURNOUTSTATE_IDLE;
-    turnouts[t].state.counter = 0;
-    turnouts[t].state.routeSelectionNum = ROUTE_NONE;
-  }
-}
-
-void runningLogic()
-{
-  for (int t = 0; t < TURNOUTS_NUM; t++)
-  {
-    // scan keys for turnout select
-    // TODO!!!
-  }
-  for (int t = 0; t < SIGNALS_NUM; t++)
-  {
-    // scan keys for signal select
-    // TODO!!!
-  }
-  for (int t = 0; t < ROUTES_NUM; t++)
-  {
-    // scan keys for route select
-    // TODO!!!
-  }
-}
-
-// ---------- TEST ----------
-
-unsigned long testT0 = 0;
-bool testV1 = false;
-bool testV2 = false;
-bool testV3 = false;
-bool testCR = false;
-
-void testInit()
-{
-  for (int t = 0; t < LED_NUM; t++)
-    leds[t] = LEDS_BLINK;
-}
-
-void testLogic()
-{
-  unsigned long testT1 = millis() / 1000;
-  if (testT1 == testT0)
-    return;
-  testT0 = testT1;
-  Serial.print("TEST: ");
-  for (int t = 0; t < KEY_NUM; t++)
-    Serial.print((keys[t] ? 'x' : '_'));
-  Serial.println("");
-  if (keys[10])
-  {
-    dataOut[1] = (dataOut[1] + 1) & 31;
-    dataOut[3] = (dataOut[3] + 1) & 31;
-    dataOut[4] = (dataOut[4] + 1) & 31;
-    dataOut[5] = (dataOut[5] + 1) & 31;
-    dataOut[6] = (dataOut[6] + 1) & 31;
-    dataOut[8] = (dataOut[8] + 1) & 31;
-  }
-  if (keys[12])
-    testV2 = (testV2 ? false : true);
-  if (keys[11])
-    testV3 = (testV3 ? false : true);
-  if (keys[3])
-    testV1 = (testV1 ? false : true);
-  if (keys[10])
-    testCR = (testCR ? false : true);
-  
-  if (testV1)
-    dataOut[2] = 0x02 | 0x10;
-  else
-    dataOut[2] = 0x01;
-  uint8_t v = 0;
-  if (testV2)
-    v |= 0x02;
-  else
-    v |= 0x01;
-  if (testV3)
-    v |= 0x08;
-  else
-    v |= 0x04;
-  if (testCR)
-    v |= 0x10;
-  dataOut[7] = v;
-}
 
