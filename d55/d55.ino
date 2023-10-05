@@ -85,12 +85,13 @@ struct RouteLock
 };
 
 #define ROUTE_NONE (-1)
+#define LED_NONE   (-1)
 
 // ---- TURNOUTS ----
 
 struct TurnoutDescription
 {
-  int leds[2];
+  int leds[2]; // straight,diverging
   Driver driver;
 };
 
@@ -126,13 +127,14 @@ enum TURNOUTROUTE
 
 struct SignalDescription
 {
-  int leds[4];
+  int leds[3]; // red,green,white
   Driver driver;
 };
 
 struct SignalState
 {
   int state;
+  int image[2]; // default,blinking
 };
 
 struct Signal
@@ -165,38 +167,51 @@ enum SIGNALSTATE
   SIGNAL_CALL,
 };
 
+#define SHOW_DARK         (0x00)
 #define SHOW_RED          (0x04)
 #define SHOW_GREEN        (0x01)
 #define SHOW_YELLOW       (0x02)
 #define SHOW_GREENYELLOW  (0x09)
 #define SHOW_YELLOWYELLOW (0x0A)
 #define SHOW_CALLING      (0x14)
+#define SHOW_TESTALL      (0x1F)
 
 #define TURNOUTS_NUM      (3)
 #define SIGNALS_NUM       (6)
-#define ROUTELOCKS_NUM    (2)
+#define ROUTELOCKS_NUM    (3)
 
 Turnout turnouts[TURNOUTS_NUM] =
 {
   // turnout 1
   {
-    {{41-LED_FROM, 39-LED_FROM},{DRIVER_TURNOUT,0x02,0x00}},
-    {}
+    {{41-LED_FROM, 39-LED_FROM},{DRIVER_TURNOUT,0x02,0x00}},{}
   },
   // turnout 2
   {
-    {{36-LED_FROM, 34-LED_FROM},{DRIVER_TURNOUT,0x07,0x00}},
-    {}
+    {{36-LED_FROM, 34-LED_FROM},{DRIVER_TURNOUT,0x07,0x00}},{}
   },
   // turnout 3
   {
-    {{37-LED_FROM, 35-LED_FROM},{DRIVER_TURNOUT,0x07,0x02}},
-    {}
+    {{37-LED_FROM, 35-LED_FROM},{DRIVER_TURNOUT,0x07,0x02}},{}
   },
 };
 
-Signal signals[SIGNALS_NUM];
-RouteLock routeLocks[ROUTELOCKS_NUM];
+Signal signals[SIGNALS_NUM] =
+{
+  {{{45-LED_FROM,47-LED_FROM,49-LED_FROM},{DRIVER_SIGNAL4,0x01,0}},{SIGNAL_STOP,{SHOW_TESTALL,SHOW_DARK}}},
+  {{{42-LED_FROM,44-LED_FROM,46-LED_FROM},{DRIVER_SIGNAL3,0x03,0}},{SIGNAL_STOP,{SHOW_TESTALL,SHOW_DARK}}},
+  {{{51-LED_FROM,38-LED_FROM,40-LED_FROM},{DRIVER_SIGNAL4,0x04,0}},{SIGNAL_STOP,{SHOW_TESTALL,SHOW_DARK}}},
+  {{{25-LED_FROM,50-LED_FROM,48-LED_FROM},{DRIVER_SIGNAL4,0x05,0}},{SIGNAL_STOP,{SHOW_TESTALL,SHOW_DARK}}},
+  {{{31-LED_FROM,29-LED_FROM,27-LED_FROM},{DRIVER_SIGNAL3,0x06,0}},{SIGNAL_STOP,{SHOW_TESTALL,SHOW_DARK}}},
+  {{{28-LED_FROM,26-LED_FROM,24-LED_FROM},{DRIVER_SIGNAL4,0x08,0}},{SIGNAL_STOP,{SHOW_TESTALL,SHOW_DARK}}},
+};
+
+RouteLock routeLocks[ROUTELOCKS_NUM] =
+{
+  {{43-LED_FROM,LED_NONE   },{ROUTESTATE_IDLE,-1}},
+  {{32-LED_FROM,30-LED_FROM},{ROUTESTATE_IDLE,-1}},
+  {{33-LED_FROM,LED_NONE   },{ROUTESTATE_IDLE,-1}},
+};
 
 /*
   send_cmd(0x02, (stTo1 ? 0x02 : 0x01) | (stLights ? 0x10 : 0x00));  
@@ -209,25 +224,30 @@ RouteLock routeLocks[ROUTELOCKS_NUM];
   send_cmd(0x08, headIn2);
 */
 
-void sendCommand(uint8_t addr, uint8_t data)
+void sendCommand(uint8_t addr, uint8_t data, bool debug)
 {
   uint8_t msg[3];
   msg[0] = (addr & 127) | 128;
   msg[1] = data & 127;
   msg[2] = (-(msg[0] + msg[1])) & 127;
   Serial1.write(msg, sizeof(msg));
-  /*Serial.print("(");
-  Serial.print(addr);
-  Serial.print(",0x");
-  Serial.print(data, HEX);
-  Serial.print(") ");*/
+  if (debug)
+  {
+    Serial.print("(");
+    Serial.print(addr);
+    Serial.print(",0x");
+    Serial.print((data >> 4) & 15, HEX);
+    Serial.print(data & 15, HEX);
+    Serial.print(") ");
+  }
 }
 
-void sendCommands()
+void sendCommands(bool debug)
 {
   for (int t = 1; t < 9; t++)
-    sendCommand(t, dataOut[t]);
-  //Serial.println("");
+    sendCommand(t, dataOut[t], debug);
+  if (debug)
+    Serial.println("");
 }
 
 void readKeys()
@@ -246,7 +266,7 @@ void writeLeds()
 
 void turnoutSet(int turnoutNum, int route)
 {
-  if ((turnoutNum < 0) || (turnoutNum > TURNOUTS_NUM))
+  if ((turnoutNum < 0) || (turnoutNum >= TURNOUTS_NUM))
     return;
   turnouts[turnoutNum].state.state = TURNOUTSTATE_MOVING_TURNOUT;
   turnouts[turnoutNum].state.counter = TURNOUT_MOVE_TIME;
@@ -256,10 +276,39 @@ void turnoutSet(int turnoutNum, int route)
 
 void turnoutStop(int turnoutNum)
 {
-  if ((turnoutNum < 0) || (turnoutNum > TURNOUTS_NUM))
+  if ((turnoutNum < 0) || (turnoutNum >= TURNOUTS_NUM))
     return;
   turnouts[turnoutNum].state.state = TURNOUTSTATE_IDLE;
   turnouts[turnoutNum].state.counter = 0;
+}
+
+void signalSet(int signalNum, int state)
+{
+  if ((signalNum < 0) || (signalNum >= SIGNALS_NUM))
+    return;
+  signals[signalNum].state.state = state;
+}
+
+bool routeLock(int routeNum, int routeSelectionNum)
+{
+  if ((routeNum < 0) || (routeNum >= ROUTELOCKS_NUM))
+    return false;
+  if (routeLocks[routeNum].state.state != ROUTESTATE_IDLE)
+    return false;
+  routeLocks[routeNum].state.state = ROUTESTATE_ACTIVE;
+  routeLocks[routeNum].state.routeSelectionNum = routeSelectionNum;
+  return true;
+}
+
+bool routeClear(int routeNum)
+{
+  if ((routeNum < 0) || (routeNum >= ROUTELOCKS_NUM))
+    return false;
+  if (routeLocks[routeNum].state.state != ROUTESTATE_ACTIVE)
+    return false;
+  routeLocks[routeNum].state.state = ROUTESTATE_IDLE;
+  routeLocks[routeNum].state.routeSelectionNum = ROUTE_NONE;
+  return true;
 }
 
 void updateTurnouts()
@@ -319,7 +368,40 @@ void updateTurnouts()
 
 void updateSignals()
 {
-  // TODO!!!
+  for (int t = 0; t < SIGNALS_NUM; t++)
+  {
+    int address = signals[t].desc.driver.address;
+    int offset = signals[t].desc.driver.offset;
+    switch (signals[t].state.state)
+    {
+      case SIGNAL_STOP:
+        leds[signals[t].desc.leds[0]] = LEDS_ON;
+        leds[signals[t].desc.leds[1]] = LEDS_OFF;
+        leds[signals[t].desc.leds[2]] = LEDS_OFF;
+        break;
+      case SIGNAL_GO:
+        leds[signals[t].desc.leds[0]] = LEDS_OFF;
+        leds[signals[t].desc.leds[1]] = LEDS_ON;
+        leds[signals[t].desc.leds[2]] = LEDS_OFF;
+        break;
+      case SIGNAL_CALL:
+        leds[signals[t].desc.leds[0]] = LEDS_ON;
+        leds[signals[t].desc.leds[1]] = LEDS_OFF;
+        leds[signals[t].desc.leds[2]] = LEDS_ON;
+        break;
+    }
+    dataOut[address] = signals[t].state.image[blinkStep];
+  }
+}
+
+void updateRoutes()
+{
+  for (int t = 0; t < ROUTELOCKS_NUM; t++)
+  {
+    leds[routeLocks[t].desc.led] = ((routeLocks[t].state.state == ROUTESTATE_ACTIVE) ? LEDS_ON : LEDS_OFF);
+    if (routeLocks[t].desc.crossingLed >= 0)
+      leds[routeLocks[t].desc.crossingLed] = ((routeLocks[t].state.state == ROUTESTATE_ACTIVE) ? LEDS_BLINK : LEDS_OFF);
+  }
 }
 
 void initLogic();
@@ -367,13 +449,22 @@ void loop()
       break;
   }
   writeLeds();
-  updateSignals();
   unsigned long dataOutT1 = millis() / 100; // 10 msg/sec
   if (dataOutT1 != dataOutT0)
   {
     dataOutT0 = dataOutT1;
-    updateTurnouts();
-    sendCommands();
+    if (initStep > 1)
+    {
+      updateTurnouts();
+      updateSignals();
+      updateRoutes();
+      if (modeFlag == MODE_RUN)
+      {
+        dataOut[2] = (dataOut[2] & 0x0f) | (keys[0] ? 0x10 : 0x00); // station lights on switch 0
+        dataOut[7] = (dataOut[7] & 0x0f) | ((routeLocks[2].state.state == ROUTESTATE_ACTIVE) ? 0x10 : 0x00); // crossing light signal
+      }
+    }
+    sendCommands((dataOutT1 % 10) == 0);
   }
 }
 
@@ -385,7 +476,7 @@ void initLogic()
     initStep = 1;
     Serial.println("led tests...");
     for (int t = 0; t < LED_NUM; t++)
-      leds[t] = LEDS_ON;    
+      leds[t] = LEDS_ON;
   }
   if ((initTime >= 2000) && (initStep == 1))
   {
@@ -395,6 +486,10 @@ void initLogic()
     Serial.println("turnout reset step 1...");
     for (int t = 0; t < TURNOUTS_NUM; t++)
       turnoutSet(t, TURNOUT_DIVERGING);  
+    for (int t = 0; t < SIGNALS_NUM; t++)
+      signalSet(t, SIGNAL_CALL);
+    for (int t = 0; t < ROUTELOCKS_NUM; t++)
+      routeLock(t, -1);
   }
   if ((initTime >= 7000) && (initStep == 2))
   {
@@ -402,9 +497,15 @@ void initLogic()
     Serial.println("turnout reset step 2...");
     for (int t = 0; t < TURNOUTS_NUM; t++)
       turnoutSet(t, TURNOUT_STRAIGHT);
+    for (int t = 0; t < SIGNALS_NUM; t++)
+      signalSet(t, SIGNAL_GO);
   }
   if ((initTime >= 12000) && (initStep == 3))
   {
+    for (int t = 0; t < SIGNALS_NUM; t++)
+      signalSet(t, SIGNAL_STOP);
+    for (int t = 0; t < ROUTELOCKS_NUM; t++)
+      routeClear(t);
     Serial.println("mode selection");
     if (keys[0])
     {
