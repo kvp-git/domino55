@@ -44,30 +44,32 @@ struct Driver
 struct RouteSelection
 {
   int lockKeys[2];
-  int unlockKeys[2];
   int turnoutNums[2];
   int turnoutDirs[2];
-  int routeLockNum;
+  int routeLockNums[2];
   int signalNum;
-  int ledNum[2];
 };
 
 struct TurnoutSelection
 {
   int changeKeys[2];
   int turnoutNum;
+  int routeLockNum;
 };
 
 struct SignalSelection
 {
   int callKeys[2];
+  int clearKeys[2];
   int signalNum;
+  int routeLockNums[2];
 };
 
 // ---- ROUTELOCKS ----
 
 struct RouteLockDescription
 {
+  int unlockKeys[2];
   int led;
   int crossingLed;
 };
@@ -84,8 +86,8 @@ struct RouteLock
   RouteLockState state;  
 };
 
-#define ROUTE_NONE (-1)
-#define LED_NONE   (-1)
+#define ROUTE_NONE   (-1)
+#define UNUSED       (-1)
 
 // ---- TURNOUTS ----
 
@@ -119,7 +121,7 @@ enum TURNOUTSTATE
 
 enum TURNOUTROUTE
 {
-  TURNOUT_STRAIGHT,
+  TURNOUT_STRAIGHT = 0,
   TURNOUT_DIVERGING,
 };
 
@@ -179,6 +181,7 @@ enum SIGNALSTATE
 #define TURNOUTS_NUM      (3)
 #define SIGNALS_NUM       (6)
 #define ROUTELOCKS_NUM    (3)
+#define ROUTES_NUM        (8)
 
 Turnout turnouts[TURNOUTS_NUM] =
 {
@@ -206,11 +209,41 @@ Signal signals[SIGNALS_NUM] =
   {{{28-LED_FROM,26-LED_FROM,24-LED_FROM},{DRIVER_SIGNAL4,0x08,0}},{SIGNAL_STOP,{SHOW_TESTALL,SHOW_DARK}}},
 };
 
-RouteLock routeLocks[ROUTELOCKS_NUM] =
+RouteLock routeLocks[ROUTELOCKS_NUM] = // unlockKeys[2],led,crossingLed
 {
-  {{43-LED_FROM,LED_NONE   },{ROUTESTATE_IDLE,-1}},
-  {{32-LED_FROM,30-LED_FROM},{ROUTESTATE_IDLE,-1}},
-  {{33-LED_FROM,LED_NONE   },{ROUTESTATE_IDLE,-1}},
+  {{{ 2,7},43-LED_FROM,UNUSED     },{ROUTESTATE_IDLE,ROUTE_NONE}},
+  {{{13,7},32-LED_FROM,30-LED_FROM},{ROUTESTATE_IDLE,ROUTE_NONE}},
+  {{{13,7},33-LED_FROM,UNUSED     },{ROUTESTATE_IDLE,ROUTE_NONE}},
+};
+
+RouteSelection routeSelections[ROUTES_NUM] = // lockKeys[2],turnoutNums[2],turnoutDirs[2],routeLockNums[2],signalNum
+{
+  {{1,8},{0,UNUSED},{TURNOUT_STRAIGHT, UNUSED},{0,UNUSED},0},
+  {{1,9},{0,UNUSED},{TURNOUT_DIVERGING,UNUSED},{0,UNUSED},0},
+  {{5,2},{0,UNUSED},{TURNOUT_STRAIGHT, UNUSED},{0,UNUSED},1},
+  {{6,2},{0,UNUSED},{TURNOUT_DIVERGING,UNUSED},{0,UNUSED},2},
+
+  {{14,5},{1,UNUSED},{TURNOUT_STRAIGHT, UNUSED},           {1,UNUSED},5},
+  {{14,6},{1,2     },{TURNOUT_DIVERGING,TURNOUT_DIVERGING},{1,2},     5},
+  {{5,13},{1,UNUSED},{TURNOUT_STRAIGHT, UNUSED},           {1,UNUSED},4},
+  {{6,13},{1,2     },{TURNOUT_DIVERGING,TURNOUT_DIVERGING},{1,2},     3},
+};
+
+TurnoutSelection turnoutSelections[TURNOUTS_NUM] = // changeKeys[2],turnoutNum,routeLockNum
+{
+  {{3,4},0,0},
+  {{11,4},1,1},
+  {{12,4},2,2},
+};
+
+SignalSelection signalSelections[SIGNALS_NUM] = // callKeys[2],clearKeys[2],signalNum,routeLockNums[2]
+{
+  {{ 1,10},{ 1,7},0,{0,UNUSED}},
+  {{ 5,10},{ 5,7},1,{0,UNUSED}},
+  {{ 6,10},{ 6,7},2,{0,UNUSED}},
+  {{ 8,10},{ 8,7},3,{1,2}},
+  {{ 9,10},{ 9,7},4,{1,2}},
+  {{14,10},{14,7},5,{1,2}},
 };
 
 /*
@@ -366,12 +399,16 @@ void updateTurnouts()
   }
 }
 
+void updateSignalImages()
+{
+  // TODO!!! 
+}
+
 void updateSignals()
 {
   for (int t = 0; t < SIGNALS_NUM; t++)
   {
     int address = signals[t].desc.driver.address;
-    int offset = signals[t].desc.driver.offset;
     switch (signals[t].state.state)
     {
       case SIGNAL_STOP:
@@ -456,8 +493,9 @@ void loop()
     if (initStep > 1)
     {
       updateTurnouts();
-      updateSignals();
       updateRoutes();
+      updateSignalImages();
+      updateSignals();
       if (modeFlag == MODE_RUN)
       {
         dataOut[2] = (dataOut[2] & 0x0f) | (keys[0] ? 0x10 : 0x00); // station lights on switch 0
@@ -535,7 +573,21 @@ void runningInit()
 
 void runningLogic()
 {
-  
+  for (int t = 0; t < TURNOUTS_NUM; t++)
+  {
+    // scan keys for turnout select
+    // TODO!!!
+  }
+  for (int t = 0; t < SIGNALS_NUM; t++)
+  {
+    // scan keys for signal select
+    // TODO!!!
+  }
+  for (int t = 0; t < ROUTES_NUM; t++)
+  {
+    // scan keys for route select
+    // TODO!!!
+  }
 }
 
 // ---------- TEST ----------
