@@ -247,6 +247,25 @@ SignalSelection signalSelections[SIGNALS_NUM] = // callKeys[2],clearKeys[2],sign
   {{14,10},{14,7},5,{1,2}},
 };
 
+/*  --Trs--s-\
+  s-rT--s--s--Tr-s
+
+s:signal (r,g,w)
+r:route (-,x)
+c:crossing (r,w)
+T:turnout (-,/,\)
+*/
+
+void debugImage()
+{
+  char text[3][24];
+  strcpy(text[0], " c|-Trs--s-\\");
+  strcpy(text[1], "s-rT--s--s--Tr-s");
+  strcpy(text[2], "xx,xx,xx,xx,xx,xx,xx,xx");
+  for (int t = 0; t < 3; t++)
+    Serial.println(text[t]);
+}
+
 /*
   send_cmd(0x02, (stTo1 ? 0x02 : 0x01) | (stLights ? 0x10 : 0x00));  
   send_cmd(0x07, (stTo2 ? (0x01 | 0x08) : (0x02 | 0x04)) | ((!stIn2 && !stOut2) ? 0x10 : 0x00));
