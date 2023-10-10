@@ -1,3 +1,4 @@
+// Integra Domino 55 emulator for a serial bus based control by KVP in 2023
 
 #define LED_FROM (24)
 #define LED_TO   (51)
