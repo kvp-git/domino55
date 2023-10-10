@@ -1,4 +1,3 @@
-// Integra Domino 55 emulator for a serial bus based control by KVP in 2023
 
 #define LED_FROM (24)
 #define LED_TO   (51)
@@ -250,11 +249,63 @@ SignalSelection signalSelections[SIGNALS_NUM] = // callKeys[2],clearKeys[2],sign
 /*  --Trs--s-\
   s-rT--s--s--Tr-s
 
-s:signal (r,g,w)
-r:route (-,x)
-c:crossing (r,w)
+s:signal (R,G,W)
+r:route (-,a,L)
+c:crossing ( ,*)
 T:turnout (-,/,\)
 */
+
+char debugSignalToChar(int signalNum)
+{
+  if ((signalNum < 0) || (signalNum >= SIGNALS_NUM))
+    return;
+  switch (signals[signalNum].state.state)
+  {
+    case SIGNAL_STOP:
+      return 'R';
+    case SIGNAL_GO:
+      return 'G';
+    case SIGNAL_CALL:
+      return 'W';
+    default:
+      return 'x';
+  }
+}
+
+char debugRouteToChar(int routeNum)
+{
+  if ((routeNum < 0) || (routeNum >= ROUTELOCKS_NUM))
+    return false;
+  switch (routeLocks[routeNum].state.state)
+  {
+    case ROUTESTATE_IDLE:
+      return '-';
+    case ROUTESTATE_ACTIVE:
+      return 'a';
+    case ROUTESTATE_LOCKED:
+      return 'L';
+    default:
+      return 'x';
+  }
+}
+
+char debugTurnoutToChar(int turnoutNum, char diverging)
+{
+  switch (turnouts[turnoutNum].state.state)
+  {
+    case TURNOUTSTATE_IDLE:
+    case TURNOUTSTATE_LOCKED:
+      if (turnouts[turnoutNum].state.route == 0)
+        return '-';
+      else
+        return diverging;
+    case TURNOUTSTATE_MOVING_TURNOUT:
+    case TURNOUTSTATE_MOVING_ROUTE:
+      return ':';
+    default:
+      return '!';
+  }
+}
 
 void debugImage()
 {
@@ -262,20 +313,22 @@ void debugImage()
   strcpy(text[0], " c|-Trs--s-\\");
   strcpy(text[1], "s-rT--s--s--Tr-s");
   strcpy(text[2], "xx,xx,xx,xx,xx,xx,xx,xx");
+  text[1][0] = debugSignalToChar(5);
+  text[1][6] = debugSignalToChar(3);
+  text[0][6] = debugSignalToChar(4);
+  text[1][9] = debugSignalToChar(1);
+  text[0][9] = debugSignalToChar(2);
+  text[1][15] = debugSignalToChar(0);
+  text[1][2] = debugRouteToChar(1);
+  text[0][5] = debugRouteToChar(2);
+  text[1][13] = debugRouteToChar(0);
+  text[0][1] = ((debugRouteToChar(1) != '-') ? '*' : '.');
+  text[1][3] = debugTurnoutToChar(1, '/');
+  text[0][4] = debugTurnoutToChar(2, '/');
+  text[1][12] = debugTurnoutToChar(0, '\\');
   for (int t = 0; t < 3; t++)
     Serial.println(text[t]);
 }
-
-/*
-  send_cmd(0x02, (stTo1 ? 0x02 : 0x01) | (stLights ? 0x10 : 0x00));  
-  send_cmd(0x07, (stTo2 ? (0x01 | 0x08) : (0x02 | 0x04)) | ((!stIn2 && !stOut2) ? 0x10 : 0x00));
-  send_cmd(0x01, headIn1);
-  send_cmd(0x03, headOut1a);
-  send_cmd(0x04, headOut1b);
-  send_cmd(0x06, headOut2a);
-  send_cmd(0x05, headOut2b);
-  send_cmd(0x08, headIn2);
-*/
 
 void sendCommand(uint8_t addr, uint8_t data, bool debug)
 {
@@ -479,9 +532,9 @@ void updateRoutes()
 {
   for (int t = 0; t < ROUTELOCKS_NUM; t++)
   {
-    leds[routeLocks[t].desc.led] = ((routeLocks[t].state.state == ROUTESTATE_ACTIVE) ? LEDS_ON : LEDS_OFF);
+    leds[routeLocks[t].desc.led] = ((routeLocks[t].state.state != ROUTESTATE_IDLE) ? LEDS_ON : LEDS_OFF);
     if (routeLocks[t].desc.crossingLed >= 0)
-      leds[routeLocks[t].desc.crossingLed] = ((routeLocks[t].state.state == ROUTESTATE_ACTIVE) ? LEDS_BLINK : LEDS_OFF);
+      leds[routeLocks[t].desc.crossingLed] = ((routeLocks[t].state.state != ROUTESTATE_IDLE) ? LEDS_BLINK : LEDS_OFF);
   }
 }
 
@@ -742,6 +795,8 @@ void loop()
       }
     }
     sendCommands((dataOutT1 % 10) == 0);
+    if ((dataOutT1 % 10) == 0)
+      debugImage();
   }
 }
 
