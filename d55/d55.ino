@@ -308,12 +308,62 @@ char debugTurnoutToChar(int turnoutNum, char diverging)
   }
 }
 
+const char hexTbl[] = "0123456789ABCDEF";
+
+char num2hex(int v)
+{
+  return hexTbl[v & 15];
+}
+
+void signalToText(int signalNum, char* buf)
+{
+  switch (signals[signalNum].state.image[0])
+  {
+    case SHOW_DARK:
+      buf[0] = 'x';
+      buf[1] = 'x';
+      break;
+    case SHOW_RED:
+      buf[0] = 'R';
+      buf[1] = ' ';
+      break;
+    case SHOW_GREEN:
+      buf[0] = 'G';
+      buf[1] = ' ';
+      break;
+    case SHOW_YELLOW:
+      buf[0] = 'Y';
+      buf[1] = ' ';
+      break;
+    case SHOW_GREENYELLOW:
+      buf[0] = 'G';
+      buf[1] = 'Y';
+      break;
+    case SHOW_YELLOWYELLOW:
+      buf[0] = 'Y';
+      if (signals[signalNum].state.image[1] == SHOW_DARK)
+        buf[1] = 'y';
+      else
+        buf[1] = 'Y';
+      break;
+    case SHOW_CALLING:
+      buf[0] = 'R';
+      buf[1] = 'W';
+      break;
+    case SHOW_TESTALL:
+      buf[0] = 'T';
+      buf[1] = 'T';
+      break;
+  }
+}
+
 void debugImage()
 {
-  char text[3][24];
+  char text[4][24];
   strcpy(text[0], " c|-Trs--s-\\");
   strcpy(text[1], "s-rT--s--s--Tr-s");
   strcpy(text[2], "xx,xx,xx,xx,xx,xx,xx,xx");
+  strcpy(text[3], "xx    xx xx xx xx    xx");
   text[1][0] = debugSignalToChar(5);
   text[1][6] = debugSignalToChar(3);
   text[0][6] = debugSignalToChar(4);
@@ -327,7 +377,19 @@ void debugImage()
   text[1][3] = debugTurnoutToChar(1, '/');
   text[0][4] = debugTurnoutToChar(2, '/');
   text[1][12] = debugTurnoutToChar(0, '\\');
-  for (int t = 0; t < 3; t++)
+  for (int t = 0; t < 8; t++)
+  {
+    int data = dataOut[t + 1];
+    text[2][t*3] = num2hex(data >> 4);
+    text[2][t*3+1] = num2hex(data);
+  }
+  signalToText(0, text[3] + 0);
+  signalToText(1, text[3] + 6);
+  signalToText(2, text[3] + 9);
+  signalToText(3, text[3] + 12);
+  signalToText(4, text[3] + 15);
+  signalToText(5, text[3] + 21);
+  for (int t = 0; t < 4; t++)
     Serial.println(text[t]);
 }
 
@@ -544,14 +606,54 @@ void updateSignalImages()
             signals[t].state.image[1] = SHOW_GREENYELLOW;
             break;
           case 0:
-            signals[t].state.image[0] = SHOW_GREEN; // TODO!!!
-            signals[t].state.image[1] = SHOW_DARK;  // TODO!!!
-            // TODO!!! add turnout state based logic here
+            if (turnouts[0].state.route == 0)
+            {
+              if (signals[4].state.state == SIGNAL_GO)
+              {
+                signals[t].state.image[0] = SHOW_GREEN;
+                signals[t].state.image[1] = SHOW_GREEN;
+              } else
+              {
+                signals[t].state.image[0] = SHOW_YELLOW;
+                signals[t].state.image[1] = SHOW_YELLOW;
+              }
+            } else
+            {
+              if (signals[3].state.state == SIGNAL_GO)
+              {
+                signals[t].state.image[0] = SHOW_YELLOWYELLOW;
+                signals[t].state.image[1] = SHOW_YELLOWYELLOW;
+              } else
+              {
+                signals[t].state.image[0] = SHOW_YELLOWYELLOW;
+                signals[t].state.image[1] = SHOW_YELLOW;
+              }
+            }
             break;
           case 5:
-            signals[t].state.image[0] = SHOW_GREEN; // TODO!!!
-            signals[t].state.image[1] = SHOW_DARK;  // TODO!!!
-            // TODO!!! add turnout state based logic here
+            if (turnouts[1].state.route == 0)
+            {
+              if (signals[1].state.state == SIGNAL_GO)
+              {
+                signals[t].state.image[0] = SHOW_GREEN;
+                signals[t].state.image[1] = SHOW_GREEN;
+              } else
+              {
+                signals[t].state.image[0] = SHOW_YELLOW;
+                signals[t].state.image[1] = SHOW_YELLOW;
+              }
+            } else
+            {
+              if (signals[2].state.state == SIGNAL_GO)
+              {
+                signals[t].state.image[0] = SHOW_YELLOWYELLOW;
+                signals[t].state.image[1] = SHOW_YELLOWYELLOW;
+              } else
+              {
+                signals[t].state.image[0] = SHOW_YELLOWYELLOW;
+                signals[t].state.image[1] = SHOW_YELLOW;
+              }
+            }
             break;
           default:
             signals[t].state.image[0] = SHOW_GREEN;
@@ -896,7 +998,7 @@ void loop()
         dataOut[7] = (dataOut[7] & 0x0f) | ((routeLocks[2].state.state == ROUTESTATE_ACTIVE) ? 0x10 : 0x00); // crossing light signal
       }
     }
-    sendCommands((dataOutT1 % 10) == 0);
+    sendCommands(false); // sendCommands(dataOutT1 % 10) == 0);
     if ((dataOutT1 % 10) == 0)
       debugImage();
   }
