@@ -630,6 +630,8 @@ void runningLogic()
       {
         if (routeLocks[r0].state.state == ROUTESTATE_IDLE)
         {
+          if ((t0 != UNUSED) && (turnouts[t0].state.state != TURNOUTSTATE_IDLE))
+            continue;
           routeLock(r0, t);
           if (t0 != UNUSED)
             turnoutSet(t0, d0, t);
@@ -638,6 +640,10 @@ void runningLogic()
       {
         if ((routeLocks[r0].state.state == ROUTESTATE_IDLE) && (routeLocks[r1].state.state == ROUTESTATE_IDLE))
         {
+          if ((t0 != UNUSED) && (turnouts[t0].state.state != TURNOUTSTATE_IDLE))
+            continue;
+          if ((t1 != UNUSED) && (turnouts[t1].state.state != TURNOUTSTATE_IDLE))
+            continue;
           routeLock(r0, t);
           routeLock(r1, t);
           if (t0 != UNUSED)
