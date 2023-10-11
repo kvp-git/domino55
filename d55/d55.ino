@@ -242,8 +242,8 @@ SignalSelection signalSelections[SIGNALS_NUM] = // callKeys[2],clearKeys[2],sign
   {{ 1,10},{ 1,7},0,{0,UNUSED}},
   {{ 5,10},{ 5,7},1,{0,UNUSED}},
   {{ 6,10},{ 6,7},2,{0,UNUSED}},
-  {{ 8,10},{ 8,7},3,{1,2}},
-  {{ 9,10},{ 9,7},4,{1,2}},
+  {{ 8,10},{ 8,7},4,{1,2}},
+  {{ 9,10},{ 9,7},3,{1,2}},
   {{14,10},{14,7},5,{1,2}},
 };
 
@@ -421,7 +421,7 @@ bool routeLock(int routeNum, int routeSelectionNum)
   Serial.print(routeNum);
   Serial.print(" to route ");
   Serial.println(routeSelectionNum);
-  routeLocks[routeNum].state.state = ROUTESTATE_ACTIVE;
+  routeLocks[routeNum].state.state = ((routeSelectionNum >= 0) ? ROUTESTATE_ACTIVE : ROUTESTATE_LOCKED);
   routeLocks[routeNum].state.routeSelectionNum = routeSelectionNum;
   return true;
 }
@@ -602,6 +602,7 @@ void runningInit()
 
 void runningLogic()
 {
+  // scan for turnout changes
   for (int t = 0; t < TURNOUTS_NUM; t++)
   {
     if (keys[turnoutSelections[t].changeKeys[0]] && keys[turnoutSelections[t].changeKeys[1]])
@@ -611,11 +612,36 @@ void runningLogic()
       turnoutSet(t, ((turnouts[t].state.route == 0) ? 1 : 0), -1);
     }
   }
+  // scan for signal calls
   for (int t = 0; t < SIGNALS_NUM; t++)
   {
-    // scan keys for signal select
-    // TODO!!!
+    int sn = signalSelections[t].signalNum;
+    int r0 = signalSelections[t].routeLockNums[0];
+    int r1 = signalSelections[t].routeLockNums[1];
+    if (keys[signalSelections[t].callKeys[0]] && keys[signalSelections[t].callKeys[1]])
+    {
+      if ((r0 != UNUSED) && (routeLocks[r0].state.state != ROUTESTATE_IDLE))
+        continue;
+      if ((r1 != UNUSED) && (routeLocks[r1].state.state != ROUTESTATE_IDLE))
+        continue;
+      if (r0 != UNUSED)
+        routeLock(r0, -1);
+      if (r1 != UNUSED)
+        routeLock(r1, -1);
+      signalSet(sn, SIGNAL_CALL);
+    }
+    if (keys[signalSelections[t].clearKeys[0]] && keys[signalSelections[t].clearKeys[1]])
+    {
+      if (signals[sn].state.state != SIGNAL_CALL)
+        continue;
+      if (r0 != UNUSED)
+        routeClear(r0);
+      if (r1 != UNUSED)
+        routeClear(r1);
+      signalSet(sn, SIGNAL_STOP);
+    }
   }
+  // scan for route selections
   for (int t = 0; t < ROUTES_NUM; t++)
   {
     if (keys[routeSelections[t].lockKeys[0]] && keys[routeSelections[t].lockKeys[1]])
