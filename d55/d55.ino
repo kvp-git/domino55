@@ -341,7 +341,7 @@ void signalToText(int signalNum, char* buf)
       break;
     case SHOW_YELLOWYELLOW:
       buf[0] = 'Y';
-      if (signals[signalNum].state.image[1] == SHOW_DARK)
+      if (signals[signalNum].state.image[1] == SHOW_YELLOW)
         buf[1] = 'y';
       else
         buf[1] = 'Y';
@@ -622,11 +622,11 @@ void updateSignalImages()
               if (signals[3].state.state == SIGNAL_GO)
               {
                 signals[t].state.image[0] = SHOW_YELLOWYELLOW;
-                signals[t].state.image[1] = SHOW_YELLOWYELLOW;
+                signals[t].state.image[1] = SHOW_YELLOW;
               } else
               {
                 signals[t].state.image[0] = SHOW_YELLOWYELLOW;
-                signals[t].state.image[1] = SHOW_YELLOW;
+                signals[t].state.image[1] = SHOW_YELLOWYELLOW;
               }
             }
             break;
@@ -647,11 +647,11 @@ void updateSignalImages()
               if (signals[2].state.state == SIGNAL_GO)
               {
                 signals[t].state.image[0] = SHOW_YELLOWYELLOW;
-                signals[t].state.image[1] = SHOW_YELLOWYELLOW;
+                signals[t].state.image[1] = SHOW_YELLOW;
               } else
               {
                 signals[t].state.image[0] = SHOW_YELLOWYELLOW;
-                signals[t].state.image[1] = SHOW_YELLOW;
+                signals[t].state.image[1] = SHOW_YELLOWYELLOW;
               }
             }
             break;
