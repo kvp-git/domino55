@@ -526,6 +526,7 @@ void updateSignalImages()
         signals[t].state.image[1] = SHOW_RED;
         break;
     }
+  }
 }
 
 void updateSignals()
