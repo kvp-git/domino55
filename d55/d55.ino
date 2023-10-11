@@ -226,8 +226,8 @@ RouteSelection routeSelections[ROUTES_NUM] = // lockKeys[2],turnoutNums[2],turno
 
   {{14,5},{1,UNUSED},{TURNOUT_STRAIGHT, UNUSED},           {1,UNUSED},5},
   {{14,6},{1,2     },{TURNOUT_DIVERGING,TURNOUT_DIVERGING},{1,2},     5},
-  {{5,13},{1,UNUSED},{TURNOUT_STRAIGHT, UNUSED},           {1,UNUSED},4},
-  {{6,13},{1,2     },{TURNOUT_DIVERGING,TURNOUT_DIVERGING},{1,2},     3},
+  {{8,13},{1,UNUSED},{TURNOUT_STRAIGHT, UNUSED},           {1,UNUSED},4},
+  {{9,13},{1,2     },{TURNOUT_DIVERGING,TURNOUT_DIVERGING},{1,2},     3},
 };
 
 TurnoutSelection turnoutSelections[TURNOUTS_NUM] = // changeKeys[2],turnoutNum,routeLockNum
@@ -371,7 +371,7 @@ void writeLeds()
     digitalWrite(LED_FROM + t, (((leds[t] & ledsMask) != 0) ? HIGH : LOW));
 }
 
-void turnoutSet(int turnoutNum, int route)
+void turnoutSet(int turnoutNum, int route, int routeSelection)
 {
   if ((turnoutNum < 0) || (turnoutNum >= TURNOUTS_NUM))
     return;
@@ -379,10 +379,10 @@ void turnoutSet(int turnoutNum, int route)
   Serial.print(turnoutNum);
   Serial.print(" to direction ");
   Serial.println(route);
-  turnouts[turnoutNum].state.state = ((route < 0) ? TURNOUTSTATE_MOVING_TURNOUT : TURNOUTSTATE_MOVING_ROUTE);
+  turnouts[turnoutNum].state.state = ((routeSelection < 0) ? TURNOUTSTATE_MOVING_TURNOUT : TURNOUTSTATE_MOVING_ROUTE);
   turnouts[turnoutNum].state.counter = TURNOUT_MOVE_TIME;
   turnouts[turnoutNum].state.route = route;
-  turnouts[turnoutNum].state.routeSelectionNum = ROUTE_NONE;
+  turnouts[turnoutNum].state.routeSelectionNum = routeSelection;
 }
 
 void turnoutStop(int turnoutNum)
@@ -556,7 +556,7 @@ void initLogic()
       leds[t] = LEDS_OFF;
     Serial.println("turnout reset step 1...");
     for (int t = 0; t < TURNOUTS_NUM; t++)
-      turnoutSet(t, TURNOUT_DIVERGING);  
+      turnoutSet(t, TURNOUT_DIVERGING, -1);
     for (int t = 0; t < SIGNALS_NUM; t++)
       signalSet(t, SIGNAL_CALL);
     for (int t = 0; t < ROUTELOCKS_NUM; t++)
@@ -567,7 +567,7 @@ void initLogic()
     initStep = 3;
     Serial.println("turnout reset step 2...");
     for (int t = 0; t < TURNOUTS_NUM; t++)
-      turnoutSet(t, TURNOUT_STRAIGHT);
+      turnoutSet(t, TURNOUT_STRAIGHT, -1);
     for (int t = 0; t < SIGNALS_NUM; t++)
       signalSet(t, SIGNAL_GO);
   }
@@ -604,8 +604,12 @@ void runningLogic()
 {
   for (int t = 0; t < TURNOUTS_NUM; t++)
   {
-    // scan keys for turnout select
-    // TODO!!!
+    if (keys[turnoutSelections[t].changeKeys[0]] && keys[turnoutSelections[t].changeKeys[1]])
+    {
+      if (turnouts[t].state.state != TURNOUTSTATE_IDLE)
+        continue;
+      turnoutSet(t, ((turnouts[t].state.route == 0) ? 1 : 0), -1);
+    }
   }
   for (int t = 0; t < SIGNALS_NUM; t++)
   {
@@ -628,7 +632,7 @@ void runningLogic()
         {
           routeLock(r0, t);
           if (t0 != UNUSED)
-            turnoutSet(t0, d0);
+            turnoutSet(t0, d0, t);
         }
       } else
       {
@@ -637,9 +641,9 @@ void runningLogic()
           routeLock(r0, t);
           routeLock(r1, t);
           if (t0 != UNUSED)
-            turnoutSet(t0, d0);
+            turnoutSet(t0, d0, t);
           if (t1 != UNUSED)
-            turnoutSet(t1, d1);
+            turnoutSet(t1, d1, t);
         }
       }
     }
