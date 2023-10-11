@@ -233,8 +233,8 @@ RouteSelection routeSelections[ROUTES_NUM] = // lockKeys[2],turnoutNums[2],turno
 TurnoutSelection turnoutSelections[TURNOUTS_NUM] = // changeKeys[2],turnoutNum,routeLockNum
 {
   {{3,4},0,0},
-  {{11,4},1,1},
-  {{12,4},2,2},
+  {{12,4},1,1},
+  {{11,4},2,2},
 };
 
 SignalSelection signalSelections[SIGNALS_NUM] = // callKeys[2],clearKeys[2],signalNum,routeLockNums[2]
