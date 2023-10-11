@@ -506,6 +506,19 @@ void updateTurnouts()
 #define SHOW_YELLOWYELLOW (0x0A)
 #define SHOW_CALLING      (0x14)
 #define SHOW_TESTALL      (0x1F) 
+0  {{{45-LED_FROM,47-LED_FROM,49-LED_FROM},{DRIVER_SIGNAL4,0x01,0}},{SIGNAL_STOP,{SHOW_TESTALL,SHOW_DARK}}},
+1  {{{42-LED_FROM,44-LED_FROM,46-LED_FROM},{DRIVER_SIGNAL3,0x03,0}},{SIGNAL_STOP,{SHOW_TESTALL,SHOW_DARK}}},
+2  {{{51-LED_FROM,38-LED_FROM,40-LED_FROM},{DRIVER_SIGNAL4,0x04,0}},{SIGNAL_STOP,{SHOW_TESTALL,SHOW_DARK}}},
+3  {{{25-LED_FROM,50-LED_FROM,48-LED_FROM},{DRIVER_SIGNAL4,0x05,0}},{SIGNAL_STOP,{SHOW_TESTALL,SHOW_DARK}}},
+4  {{{31-LED_FROM,29-LED_FROM,27-LED_FROM},{DRIVER_SIGNAL3,0x06,0}},{SIGNAL_STOP,{SHOW_TESTALL,SHOW_DARK}}},
+5  {{{28-LED_FROM,26-LED_FROM,24-LED_FROM},{DRIVER_SIGNAL4,0x08,0}},{SIGNAL_STOP,{SHOW_TESTALL,SHOW_DARK}}},
+
+- A fővágányon levő kijárati jelzők zöldek, ha a váltó egyenesben van előttük és van kijárat. Amúgy piros
+- A második vágányon levő kijárati jelzők zöld-fekete-fekete-sárgák, ha a váltó kitérőben van (a Füzesabony felőli oldalon a védőváltónak is kitérőben kell állnia). Amúgy piros
+- A bejárati jelző zöld, ha a váltó egyenesben van és a kijárati jelző is zöld:
+- A bejárati jelző sárga, ha a váltó egyenesben van és a kijárati jelző piros:
+- A bejárati jelző dupla sárga, ha a kijárati jelző piros és a váltó kitérőben van:
+- A bejárati jelző villogó-sára-sárga, ha a váltó kitérőben van és a kijárati jelzó zöld-sárga:
 */
 void updateSignalImages()
 {
@@ -518,8 +531,33 @@ void updateSignalImages()
         signals[t].state.image[1] = SHOW_RED;
         break;
       case SIGNAL_GO:
-        signals[t].state.image[0] = SHOW_GREEN; // TODO!!!
-        signals[t].state.image[1] = SHOW_DARK;  // TODO!!!
+        switch (t)
+        {
+          case 1:
+          case 4:
+            signals[t].state.image[0] = SHOW_GREEN;
+            signals[t].state.image[1] = SHOW_GREEN;
+            break;
+          case 2:
+          case 3:
+            signals[t].state.image[0] = SHOW_GREENYELLOW;
+            signals[t].state.image[1] = SHOW_GREENYELLOW;
+            break;
+          case 0:
+            signals[t].state.image[0] = SHOW_GREEN; // TODO!!!
+            signals[t].state.image[1] = SHOW_DARK;  // TODO!!!
+            // TODO!!! add turnout state based logic here
+            break;
+          case 5:
+            signals[t].state.image[0] = SHOW_GREEN; // TODO!!!
+            signals[t].state.image[1] = SHOW_DARK;  // TODO!!!
+            // TODO!!! add turnout state based logic here
+            break;
+          default:
+            signals[t].state.image[0] = SHOW_GREEN;
+            signals[t].state.image[1] = SHOW_DARK;
+            break;
+        }
         break;
       case SIGNAL_CALL:
         signals[t].state.image[0] = SHOW_CALLING;
