@@ -497,9 +497,35 @@ void updateTurnouts()
   }
 }
 
+/*
+#define SHOW_DARK         (0x00)
+#define SHOW_RED          (0x04)
+#define SHOW_GREEN        (0x01)
+#define SHOW_YELLOW       (0x02)
+#define SHOW_GREENYELLOW  (0x09)
+#define SHOW_YELLOWYELLOW (0x0A)
+#define SHOW_CALLING      (0x14)
+#define SHOW_TESTALL      (0x1F) 
+*/
 void updateSignalImages()
 {
-  // TODO!!! 
+  for (int t = 0; t < SIGNALS_NUM; t++)
+  {
+    switch (signals[t].state.state)
+    {
+      case SIGNAL_STOP:
+        signals[t].state.image[0] = SHOW_RED;
+        signals[t].state.image[1] = SHOW_RED;
+        break;
+      case SIGNAL_GO:
+        signals[t].state.image[0] = SHOW_GREEN; // TODO!!!
+        signals[t].state.image[1] = SHOW_DARK;  // TODO!!!
+        break;
+      case SIGNAL_CALL:
+        signals[t].state.image[0] = SHOW_CALLING;
+        signals[t].state.image[1] = SHOW_RED;
+        break;
+    }
 }
 
 void updateSignals()
