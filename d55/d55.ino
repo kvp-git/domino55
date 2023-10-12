@@ -175,6 +175,7 @@ enum SIGNALSTATE
 #define SHOW_GREEN        (0x01)
 #define SHOW_YELLOW       (0x02)
 #define SHOW_GREENYELLOW  (0x09)
+#define SHOW_BLANKYELLOW  (0x08)
 #define SHOW_YELLOWYELLOW (0x0A)
 #define SHOW_CALLING      (0x14)
 #define SHOW_TESTALL      (0x1F)
@@ -341,7 +342,7 @@ void signalToText(int signalNum, char* buf)
       break;
     case SHOW_YELLOWYELLOW:
       buf[0] = 'Y';
-      if (signals[signalNum].state.image[1] == SHOW_YELLOW)
+      if (signals[signalNum].state.image[1] == SHOW_BLANKYELLOW)
         buf[1] = 'y';
       else
         buf[1] = 'Y';
@@ -565,6 +566,7 @@ void updateTurnouts()
 #define SHOW_GREEN        (0x01)
 #define SHOW_YELLOW       (0x02)
 #define SHOW_GREENYELLOW  (0x09)
+#define SHOW_BLANKYELLOW  (0x08)
 #define SHOW_YELLOWYELLOW (0x0A)
 #define SHOW_CALLING      (0x14)
 #define SHOW_TESTALL      (0x1F) 
@@ -622,7 +624,7 @@ void updateSignalImages()
               if (signals[3].state.state == SIGNAL_GO)
               {
                 signals[t].state.image[0] = SHOW_YELLOWYELLOW;
-                signals[t].state.image[1] = SHOW_YELLOW;
+                signals[t].state.image[1] = SHOW_BLANKYELLOW;
               } else
               {
                 signals[t].state.image[0] = SHOW_YELLOWYELLOW;
@@ -647,7 +649,7 @@ void updateSignalImages()
               if (signals[2].state.state == SIGNAL_GO)
               {
                 signals[t].state.image[0] = SHOW_YELLOWYELLOW;
-                signals[t].state.image[1] = SHOW_YELLOW;
+                signals[t].state.image[1] = SHOW_BLANKYELLOW;
               } else
               {
                 signals[t].state.image[0] = SHOW_YELLOWYELLOW;
