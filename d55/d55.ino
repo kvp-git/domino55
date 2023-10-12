@@ -747,7 +747,7 @@ void initLogic()
     for (int t = 0; t < ROUTELOCKS_NUM; t++)
       routeClear(t);
     Serial.println("mode selection");
-    if (keys[0])
+    if (false) // keys[0])
     {
       modeFlag = MODE_TEST;
       testInit();
@@ -997,7 +997,7 @@ void loop()
       if (modeFlag == MODE_RUN)
       {
         dataOut[2] = (dataOut[2] & 0x0f) | (keys[0] ? 0x10 : 0x00); // station lights on switch 0
-        dataOut[7] = (dataOut[7] & 0x0f) | ((routeLocks[2].state.state == ROUTESTATE_ACTIVE) ? 0x10 : 0x00); // crossing light signal
+        dataOut[7] = (dataOut[7] & 0x0f) | ((routeLocks[1].state.state != ROUTESTATE_IDLE) ? 0x00 : 0x10); // crossing light signal
       }
     }
     sendCommands(false); // sendCommands(dataOutT1 % 10) == 0);
