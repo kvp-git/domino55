@@ -48,6 +48,9 @@ struct RouteSelection
   int turnoutDirs[2];
   int routeLockNums[2];
   int signalNum;
+  int blockLock;
+  int blockTurnout;
+  int blockTurnoutDir;
 };
 
 struct TurnoutSelection
@@ -220,15 +223,15 @@ RouteLock routeLocks[ROUTELOCKS_NUM] = // unlockKeys[2],led,crossingLed
 
 RouteSelection routeSelections[ROUTES_NUM] = // lockKeys[2],turnoutNums[2],turnoutDirs[2],routeLockNums[2],signalNum
 {
-  {{1,8},{0,UNUSED},{TURNOUT_STRAIGHT, UNUSED},{0,UNUSED},0},
-  {{1,9},{0,UNUSED},{TURNOUT_DIVERGING,UNUSED},{0,UNUSED},0},
-  {{5,2},{0,UNUSED},{TURNOUT_STRAIGHT, UNUSED},{0,UNUSED},1},
-  {{6,2},{0,UNUSED},{TURNOUT_DIVERGING,UNUSED},{0,UNUSED},2},
+  {{1,8},{0,UNUSED},{TURNOUT_STRAIGHT, UNUSED},{0,UNUSED},0,1,1,TURNOUT_STRAIGHT},
+  {{1,9},{0,UNUSED},{TURNOUT_DIVERGING,UNUSED},{0,UNUSED},0,1,1,TURNOUT_DIVERGING},
+  {{5,2},{0,UNUSED},{TURNOUT_STRAIGHT, UNUSED},{0,UNUSED},1,UNUSED,UNUSED,UNUSED},
+  {{6,2},{0,UNUSED},{TURNOUT_DIVERGING,UNUSED},{0,UNUSED},2,UNUSED,UNUSED,UNUSED},
 
-  {{14,5},{1,UNUSED},{TURNOUT_STRAIGHT, UNUSED},           {1,UNUSED},5},
-  {{14,6},{1,2     },{TURNOUT_DIVERGING,TURNOUT_DIVERGING},{1,2},     5},
-  {{8,13},{1,UNUSED},{TURNOUT_STRAIGHT, UNUSED},           {1,UNUSED},4},
-  {{9,13},{1,2     },{TURNOUT_DIVERGING,TURNOUT_DIVERGING},{1,2},     3},
+  {{14,5},{1,UNUSED},{TURNOUT_STRAIGHT, UNUSED},           {1,UNUSED},5,0,0,TURNOUT_STRAIGHT},
+  {{14,6},{1,2     },{TURNOUT_DIVERGING,TURNOUT_DIVERGING},{1,2},     5,0,0,TURNOUT_DIVERGING},
+  {{8,13},{1,UNUSED},{TURNOUT_STRAIGHT, UNUSED},           {1,UNUSED},4,UNUSED,UNUSED,UNUSED},
+  {{9,13},{1,2     },{TURNOUT_DIVERGING,TURNOUT_DIVERGING},{1,2},     3,UNUSED,UNUSED,UNUSED},
 };
 
 TurnoutSelection turnoutSelections[TURNOUTS_NUM] = // changeKeys[2],turnoutNum,routeLockNum
@@ -821,9 +824,15 @@ void runningLogic()
       int t1 = routeSelections[t].turnoutNums[1];
       int d0 = routeSelections[t].turnoutDirs[0];
       int d1 = routeSelections[t].turnoutDirs[1];
+      int br = routeSelections[t].blockLock;
+      int bt = routeSelections[t].blockTurnout;
+      int bd = routeSelections[t].blockTurnoutDir;
+      bool isBlock = false;
+      if (br != UNUSED)
+        isBlock = ((routeLocks[br].state.state != ROUTESTATE_IDLE) && (turnouts[bt].state.route == bd));
       if (r1 == UNUSED)
       {
-        if (routeLocks[r0].state.state == ROUTESTATE_IDLE)
+        if ((routeLocks[r0].state.state == ROUTESTATE_IDLE) && !isBlock)
         {
           if ((t0 != UNUSED) && (turnouts[t0].state.state != TURNOUTSTATE_IDLE))
             continue;
@@ -833,7 +842,7 @@ void runningLogic()
         }
       } else
       {
-        if ((routeLocks[r0].state.state == ROUTESTATE_IDLE) && (routeLocks[r1].state.state == ROUTESTATE_IDLE))
+        if ((routeLocks[r0].state.state == ROUTESTATE_IDLE) && (routeLocks[r1].state.state == ROUTESTATE_IDLE) && !isBlock)
         {
           if ((t0 != UNUSED) && (turnouts[t0].state.state != TURNOUTSTATE_IDLE))
             continue;
