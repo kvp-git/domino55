@@ -48,6 +48,9 @@ struct RouteSelection
   int turnoutDirs[2];
   int routeLockNums[2];
   int signalNum;
+  int blockLock;
+  int blockTurnout;
+  int blockTurnoutDir;
 };
 
 struct TurnoutSelection
@@ -175,6 +178,7 @@ enum SIGNALSTATE
 #define SHOW_GREEN        (0x01)
 #define SHOW_YELLOW       (0x02)
 #define SHOW_GREENYELLOW  (0x09)
+#define SHOW_BLANKYELLOW  (0x08)
 #define SHOW_YELLOWYELLOW (0x0A)
 #define SHOW_CALLING      (0x14)
 #define SHOW_TESTALL      (0x1F)
@@ -219,15 +223,15 @@ RouteLock routeLocks[ROUTELOCKS_NUM] = // unlockKeys[2],led,crossingLed
 
 RouteSelection routeSelections[ROUTES_NUM] = // lockKeys[2],turnoutNums[2],turnoutDirs[2],routeLockNums[2],signalNum
 {
-  {{1,8},{0,UNUSED},{TURNOUT_STRAIGHT, UNUSED},{0,UNUSED},0},
-  {{1,9},{0,UNUSED},{TURNOUT_DIVERGING,UNUSED},{0,UNUSED},0},
-  {{5,2},{0,UNUSED},{TURNOUT_STRAIGHT, UNUSED},{0,UNUSED},1},
-  {{6,2},{0,UNUSED},{TURNOUT_DIVERGING,UNUSED},{0,UNUSED},2},
+  {{1,8},{0,UNUSED},{TURNOUT_STRAIGHT, UNUSED},{0,UNUSED},0,1,1,TURNOUT_STRAIGHT},
+  {{1,9},{0,UNUSED},{TURNOUT_DIVERGING,UNUSED},{0,UNUSED},0,1,1,TURNOUT_DIVERGING},
+  {{5,2},{0,UNUSED},{TURNOUT_STRAIGHT, UNUSED},{0,UNUSED},1,UNUSED,UNUSED,UNUSED},
+  {{6,2},{0,UNUSED},{TURNOUT_DIVERGING,UNUSED},{0,UNUSED},2,UNUSED,UNUSED,UNUSED},
 
-  {{14,5},{1,UNUSED},{TURNOUT_STRAIGHT, UNUSED},           {1,UNUSED},5},
-  {{14,6},{1,2     },{TURNOUT_DIVERGING,TURNOUT_DIVERGING},{1,2},     5},
-  {{8,13},{1,UNUSED},{TURNOUT_STRAIGHT, UNUSED},           {1,UNUSED},4},
-  {{9,13},{1,2     },{TURNOUT_DIVERGING,TURNOUT_DIVERGING},{1,2},     3},
+  {{14,5},{1,UNUSED},{TURNOUT_STRAIGHT, UNUSED},           {1,UNUSED},5,0,0,TURNOUT_STRAIGHT},
+  {{14,6},{1,2     },{TURNOUT_DIVERGING,TURNOUT_DIVERGING},{1,2},     5,0,0,TURNOUT_DIVERGING},
+  {{8,13},{1,UNUSED},{TURNOUT_STRAIGHT, UNUSED},           {1,UNUSED},4,UNUSED,UNUSED,UNUSED},
+  {{9,13},{1,2     },{TURNOUT_DIVERGING,TURNOUT_DIVERGING},{1,2},     3,UNUSED,UNUSED,UNUSED},
 };
 
 TurnoutSelection turnoutSelections[TURNOUTS_NUM] = // changeKeys[2],turnoutNum,routeLockNum
@@ -341,7 +345,7 @@ void signalToText(int signalNum, char* buf)
       break;
     case SHOW_YELLOWYELLOW:
       buf[0] = 'Y';
-      if (signals[signalNum].state.image[1] == SHOW_YELLOW)
+      if (signals[signalNum].state.image[1] == SHOW_BLANKYELLOW)
         buf[1] = 'y';
       else
         buf[1] = 'Y';
@@ -565,6 +569,7 @@ void updateTurnouts()
 #define SHOW_GREEN        (0x01)
 #define SHOW_YELLOW       (0x02)
 #define SHOW_GREENYELLOW  (0x09)
+#define SHOW_BLANKYELLOW  (0x08)
 #define SHOW_YELLOWYELLOW (0x0A)
 #define SHOW_CALLING      (0x14)
 #define SHOW_TESTALL      (0x1F) 
@@ -622,7 +627,7 @@ void updateSignalImages()
               if (signals[3].state.state == SIGNAL_GO)
               {
                 signals[t].state.image[0] = SHOW_YELLOWYELLOW;
-                signals[t].state.image[1] = SHOW_YELLOW;
+                signals[t].state.image[1] = SHOW_BLANKYELLOW;
               } else
               {
                 signals[t].state.image[0] = SHOW_YELLOWYELLOW;
@@ -647,7 +652,7 @@ void updateSignalImages()
               if (signals[2].state.state == SIGNAL_GO)
               {
                 signals[t].state.image[0] = SHOW_YELLOWYELLOW;
-                signals[t].state.image[1] = SHOW_YELLOW;
+                signals[t].state.image[1] = SHOW_BLANKYELLOW;
               } else
               {
                 signals[t].state.image[0] = SHOW_YELLOWYELLOW;
@@ -745,7 +750,7 @@ void initLogic()
     for (int t = 0; t < ROUTELOCKS_NUM; t++)
       routeClear(t);
     Serial.println("mode selection");
-    if (keys[0])
+    if (false) // keys[0])
     {
       modeFlag = MODE_TEST;
       testInit();
@@ -819,9 +824,15 @@ void runningLogic()
       int t1 = routeSelections[t].turnoutNums[1];
       int d0 = routeSelections[t].turnoutDirs[0];
       int d1 = routeSelections[t].turnoutDirs[1];
+      int br = routeSelections[t].blockLock;
+      int bt = routeSelections[t].blockTurnout;
+      int bd = routeSelections[t].blockTurnoutDir;
+      bool isBlock = false;
+      if (br != UNUSED)
+        isBlock = ((routeLocks[br].state.state != ROUTESTATE_IDLE) && (turnouts[bt].state.route == bd));
       if (r1 == UNUSED)
       {
-        if (routeLocks[r0].state.state == ROUTESTATE_IDLE)
+        if ((routeLocks[r0].state.state == ROUTESTATE_IDLE) && !isBlock)
         {
           if ((t0 != UNUSED) && (turnouts[t0].state.state != TURNOUTSTATE_IDLE))
             continue;
@@ -831,7 +842,7 @@ void runningLogic()
         }
       } else
       {
-        if ((routeLocks[r0].state.state == ROUTESTATE_IDLE) && (routeLocks[r1].state.state == ROUTESTATE_IDLE))
+        if ((routeLocks[r0].state.state == ROUTESTATE_IDLE) && (routeLocks[r1].state.state == ROUTESTATE_IDLE) && !isBlock)
         {
           if ((t0 != UNUSED) && (turnouts[t0].state.state != TURNOUTSTATE_IDLE))
             continue;
@@ -995,7 +1006,7 @@ void loop()
       if (modeFlag == MODE_RUN)
       {
         dataOut[2] = (dataOut[2] & 0x0f) | (keys[0] ? 0x10 : 0x00); // station lights on switch 0
-        dataOut[7] = (dataOut[7] & 0x0f) | ((routeLocks[2].state.state == ROUTESTATE_ACTIVE) ? 0x10 : 0x00); // crossing light signal
+        dataOut[7] = (dataOut[7] & 0x0f) | ((routeLocks[1].state.state != ROUTESTATE_IDLE) ? 0x00 : 0x10); // crossing light signal
       }
     }
     sendCommands(false); // sendCommands(dataOutT1 % 10) == 0);
